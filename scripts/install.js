@@ -20,7 +20,12 @@ function testNodePty() {
   try {
     fs.writeFileSync(tmpScript, `
       const pty = require(${JSON.stringify(nodePtyDir)});
-      const p = pty.spawn('/bin/sh', ['-c', 'exit'], { name: 'xterm' });
+      // /bin/sh does not exist on Windows; probing with it makes this test fail
+      // regardless of whether node-pty itself works.
+      const [shell, shellArgs] = process.platform === 'win32'
+        ? ['cmd.exe', ['/c', 'exit']]
+        : ['/bin/sh', ['-c', 'exit']];
+      const p = pty.spawn(shell, shellArgs, { name: 'xterm' });
       p.kill();
     `);
     execSync(`node ${tmpScript}`, { stdio: 'ignore' });
@@ -74,6 +79,7 @@ function exitWithBuildError() {
   const fixes = {
     darwin: '  xcode-select --install\n  npm install -g tui-use',
     linux:  '  sudo apt-get install build-essential python3 g++\n  npm install -g tui-use',
+    win32:  '  Install Visual Studio Build Tools with the "Desktop development with C++" workload\n  npm install -g tui-use',
   };
   const fix = fixes[platform] ?? '  npm install -g tui-use';
   console.error(`[tui-use] node-pty native binding failed to load.\n\n[tui-use] To fix:\n${fix}`);
